@@ -4,14 +4,22 @@ import argparse
 import configparser
 import json
 import logging
+import os
 import requests
+import sys
 from tabulate import tabulate
 
-config = configparser.ConfigParser()
-config.read('config.ini')
-
-EMAIL = config['rage4']['username']
-API_TOKEN = config['rage4']['api_token']
+if os.path.isfile('config.ini'):
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    EMAIL = config['rage4']['username']
+    API_TOKEN = config['rage4']['api_token']
+elif os.environ.get('RAGE4_API_TOKEN') and os.environ.get('RAGE4_USERNAME'):
+    EMAIL = os.environ.get('RAGE4_USERNAME')
+    API_TOKEN = os.environ.get('RAGE4_API_TOKEN')
+else:
+    logging.error("Unable to find config and environment variables")
+    exit(2)
 
 BASE_URL = 'https://rage4.com/rapi/'
 
