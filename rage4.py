@@ -72,14 +72,20 @@ def createrecord(name, content, type, priority):
 
 
 def deleterecord(name):
+    id = []
     for entry in listrecords():
         if entry['name'] == name:
-            id = entry['id']
-    payload = {
-                'id': id
-              }
-    api('deleterecord/', payload)
-    logging.info('Deleted record: {}'.format(id))
+            id.append(entry['id'])
+    if id:
+        for id in id:
+            payload = {
+                        'id': id
+                      }
+            api('deleterecord/', payload)
+            logging.info('Deleted record: {}'.format(id))
+    else:
+        logging.error('Unable to find entry {}'.format(name))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
