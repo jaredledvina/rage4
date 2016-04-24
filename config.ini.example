@@ -1,0 +1,6 @@
+# Copy this file to config.ini and fill in the values
+
+[rage4]
+username = <email-address>
+api_token =  <api-token>1
+
