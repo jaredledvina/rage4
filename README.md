@@ -2,6 +2,7 @@ Rage4 CLI
 =========
 
 [![MIT Licensed](https://img.shields.io/badge/license-MIT-green.svg)](https://tldrlegal.com/license/mit-license)
+[![Circle CI](https://circleci.com/gh/jaredledvina/rage4/tree/master.svg?style=svg)](https://circleci.com/gh/jaredledvina/rage4/tree/master)
 
 ## Usage
 
