@@ -57,6 +57,7 @@ def getrecordsbytype(type):
 
 
 def createrecord(name, content, type, priority):
+    #TODO: Check if record already exists
     payload = {}
     id = getdomains()
     id = id[0]
@@ -86,6 +87,9 @@ def deleterecord(name):
     else:
         logging.error('Unable to find entry {}'.format(name))
 
+def updaterecord(name, content):
+    #TODO: Make this real
+    logging.info("This method is not implemented yet")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -113,6 +117,12 @@ if __name__ == '__main__':
     parser_delete.add_argument('name', type=str)
     parser_delete.set_defaults(action='delete')
 
+    parser_show = subparser.add_parser('update',
+                                       help='Update record')
+    parser_show.add_argument('name', type=str)
+    parser_show.add_argument('content', type=str)
+    parser_show.set_defaults(action='update')
+
     args = parser.parse_args()
 
     if args.verbose:
@@ -129,5 +139,7 @@ if __name__ == '__main__':
             getrecordsbytype(args.type)
         elif args.action == "delete":
             deleterecord(args.name)
+        elif args.action == "update":
+            updaterecord(args.name)
     else:
         logging.error('Unknown action. Use -h for more information')
