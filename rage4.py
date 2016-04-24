@@ -18,8 +18,18 @@ BASE_URL = 'https://rage4.com/rapi/'
 
 def api(endpoint, payload=''):
     logging.debug('Sending payload: {}'.format(payload))
-    r = requests.get(BASE_URL + endpoint, auth=(EMAIL, API_TOKEN),
-                     params=payload)
+    try:
+        r = requests.get(BASE_URL + endpoint, auth=(EMAIL, API_TOKEN),
+                         params=payload)
+    except requests.ConnectionError as e:
+        logging.error('Received Connection Error: {}'.format(e))
+        raise
+
+    try:
+        r.raise_for_status()
+    except requests.HTTPError as e:
+        logging.error('Receieved HTTP Error: {}'.format(e))
+        raise
     logging.debug(r.json())
     logging.debug('Status Code: {}'.format(r.status_code))
     return r.json()
@@ -106,9 +116,12 @@ if __name__ == '__main__':
         logging.basicConfig(level=logging.INFO,
                             format='%(asctime)s - %(levelname)s - %(message)s')
 
-    if args.action == "create":
-        createrecord(args.name, args.content, args.type, args.priority)
-    elif args.action == "show":
-        getrecordsbytype(args.type)
-    elif args.action == "delete":
-        deleterecord(args.name)
+    if hasattr(args, 'action'):
+        if args.action == "create":
+            createrecord(args.name, args.content, args.type, args.priority)
+        elif args.action == "show":
+            getrecordsbytype(args.type)
+        elif args.action == "delete":
+            deleterecord(args.name)
+    else:
+        logging.error('Unknown action. Use -h for more information')
