@@ -4,6 +4,6 @@ machine:
 test: 
     override:
         - python3 rage4.py show A
-        - python3 rage4.py create test.techsmix.net 1.2.3.4 A 1
+        - python3 rage4.py create A 1 test.techsmix.net 1.2.3.4
         - python3 rage4.py delete test.techsmix.net
     
