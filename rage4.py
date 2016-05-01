@@ -9,12 +9,17 @@ import requests
 import sys
 from tabulate import tabulate
 
-config = configparser.ConfigParser()
 if os.path.isfile('config.ini'):
+    config = configparser.ConfigParser()
     config.read('config.ini')
-email = config['rage4']['username'] or os.environ.get('RAGE4_USERNAME')
-api_key = config['rage4']['api_token'] or os.environ.get('RAGE4_API_TOKEN') 
-# log.error("Unable to find config and environment variables")
+    email = config['rage4']['username']
+    api_token = config['rage4']['api_token']
+elif os.environ.get('RAGE4_API_TOKEN') and os.environ.get('RAGE4_USERNAME'):
+    email = os.environ.get('RAGE4_USERNAME')
+    api_token = os.environ.get('RAGE4_API_TOKEN')
+else:
+    logging.error("Unable to find config and environment variables")
+    exit(2)
 
 base_url = 'https://rage4.com/rapi/'
 
