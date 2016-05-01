@@ -3,105 +3,106 @@
 import argparse
 import configparser
 import json
-import logging
+import logging as log
 import os
 import requests
 import sys
 from tabulate import tabulate
 
+config = configparser.ConfigParser()
 if os.path.isfile('config.ini'):
-    config = configparser.ConfigParser()
     config.read('config.ini')
-    EMAIL = config['rage4']['username']
-    API_TOKEN = config['rage4']['api_token']
-elif os.environ.get('RAGE4_API_TOKEN') and os.environ.get('RAGE4_USERNAME'):
-    EMAIL = os.environ.get('RAGE4_USERNAME')
-    API_TOKEN = os.environ.get('RAGE4_API_TOKEN')
-else:
-    logging.error("Unable to find config and environment variables")
-    exit(2)
+email = config['rage4']['username'] or os.environ.get('RAGE4_USERNAME')
+api_key = config['rage4']['api_token'] or os.environ.get('RAGE4_API_TOKEN') 
+# log.error("Unable to find config and environment variables")
 
-BASE_URL = 'https://rage4.com/rapi/'
+base_url = 'https://rage4.com/rapi/'
 
 
-def api(endpoint, payload=''):
-    logging.debug('Sending payload: {}'.format(payload))
-    try:
-        r = requests.get(BASE_URL + endpoint, auth=(EMAIL, API_TOKEN),
-                         params=payload)
-    except requests.ConnectionError as e:
-        logging.error('Received Connection Error: {}'.format(e))
-        raise
-
-    try:
-        r.raise_for_status()
-    except requests.HTTPError as e:
-        logging.error('Receieved HTTP Error: {}'.format(e))
-        raise
-    logging.debug(r.json())
-    logging.debug('Status Code: {}'.format(r.status_code))
-    return r.json()
-
-
-def getdomains():
-    return api('getdomains/')
-
-
-def listrecords():
-    for id in getdomains():
-        payload = {}
-        payload = {'id': id['id'], 'name': id['name']}
-        return api('getrecords/', payload)
-
-
-def getrecordsbytype(type):
-    table = []
-    for record in listrecords():
-        if type != 'all' and record['type'] == type:
-            table.append([record['name'], record['content']])
-        elif type == 'all':
-            table.append([record['name'], record['content']])
-    print(tabulate(table))
-
-
-def createrecord(name, content, type, priority):
-    #TODO: Check if record already exists
-    payload = {}
-    id = getdomains()
-    id = id[0]
-    payload = {
-                'id': id['id'],
-                'name': name,
-                'content': content,
-                'type': type,
-                'priority': priority
-              }
-    api('createrecord/', payload)
-    logging.info('Created record: {} {} {}'.format(name, type, content))
-
-
-def deleterecord(name):
-    id = []
-    for entry in listrecords():
-        if entry['name'] == name:
-            id.append(entry['id'])
-    if id:
-        for id in id:
+class DNS_Manager:
+    """A DNS Managing class"""
+    def __init__(self, base_url, api_key, email):
+        self.base_url = base_url
+        self.api_key = api_key
+        self.email = email
+        self.auth = (email, api_key) 
+        self.domains = self._make_request('getdomains/', {}) 
+        for d in self.domains:
             payload = {
-                        'id': id
-                      }
-            api('deleterecord/', payload)
-            logging.info('Deleted record: {}'.format(id))
-    else:
-        logging.error('Unable to find entry {}'.format(name))
+                'id': d['id'],
+                'name': d['name']}
+        self.records = self._make_request('getrecords/', payload)
+    
+    def _make_request(self, endpoint, payload):
+        log.debug('Sending payload: {}'.format(payload))
+        try:
+            r = requests.get(self.base_url + endpoint, auth=self.auth, params=payload)
+        except requests.ConnectionError as e:
+            log.error('Received Connection Error: {}'.format(e)) 
+            raise 
+        try:
+            r.raise_for_status()
+        except requests.HTTPError as e:
+            log.error('Receieved HTTP Error: {}'.format(e))
+            raise
+        log.debug(r.json())
+        log.debug('Status Code: {}'.format(r.status_code))
+        return r.json()
+    
+    def _records_with_type(self, type):
+        return [record for record in self.records if record['type'] == type]
+    
+    def _records_with_name(self, name):
+        return [record for record in self.records if record['name'] == name]
 
-def updaterecord(name, content):
-    #TODO: Make this real
-    logging.info("This method is not implemented yet")
+    def _record_exists(self, name):
+        for item in self.records:
+            if name == item['name']:
+                return True
+
+    def show(self, record):
+        types = ['A', 'AAAA', 'CNAME', 'TXT']
+        table = []
+        if record in types:
+            log.debug('Looking up {} as type'.format(record))
+            for each in self._records_with_type(record):
+                table.append([each['name'], each['content']])
+        else:
+            log.debug('Looking up {} as name'.format(record))
+            for each in self._records_with_name(record):
+                table.append([each['name'], each['content']])
+        if not table: 
+            log.error('Unable to find record: {}'.format(record))
+        else:
+            print(tabulate(table))
+
+
+    def add(self, type, priority, name, content):
+        #TODO: Check if record already exists
+        if not self._record_exists(name):
+            payload = {
+                    'id': self.domains[0]['id'],
+                    'name': name,
+                    'content': content,
+                    'type': type,
+                    'priority': priority
+                  }
+            self._make_request('createrecord/', payload)
+            log.info('Created record: {} {} {}'.format(name, type, content))
+        else:
+            log.error('Record with the name {} already exists'.format(name))
+
+    def delete(self, record_name):
+        for item in self._records_with_name(record_name):
+            payload = { 'id': item['id']} 
+            self._make_request('deleterecord/', payload)
+            log.info('Deleted record: {}'.format(record_name))
+
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='Play with the Rage4 API')
+    dns = DNS_Manager(base_url, api_key, email)
+
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         '-v', '--verbose', action='store_true',
         help='Enable debug messages')
@@ -109,15 +110,15 @@ if __name__ == '__main__':
 
     parser_create = subparser.add_parser('create',
                                          help='Create an new record')
-    parser_create.add_argument('name', type=str)
-    parser_create.add_argument('content', type=str)
     parser_create.add_argument('type', type=str)
     parser_create.add_argument('priority', type=int, default=1)
+    parser_create.add_argument('name', type=str)
+    parser_create.add_argument('content', type=str)
     parser_create.set_defaults(action='create')
 
     parser_show = subparser.add_parser('show',
-                                       help='Show record by type')
-    parser_show.add_argument('type', type=str)
+                                       help='Show record by type or search')
+    parser_show.add_argument('search', type=str)
     parser_show.set_defaults(action='show')
 
     parser_delete = subparser.add_parser('delete',
@@ -125,29 +126,21 @@ if __name__ == '__main__':
     parser_delete.add_argument('name', type=str)
     parser_delete.set_defaults(action='delete')
 
-    parser_show = subparser.add_parser('update',
-                                       help='Update record')
-    parser_show.add_argument('name', type=str)
-    parser_show.add_argument('content', type=str)
-    parser_show.set_defaults(action='update')
-
     args = parser.parse_args()
 
     if args.verbose:
-        logging.basicConfig(level=logging.DEBUG,
+        log.basicConfig(level=log.DEBUG,
                             format='%(asctime)s - %(levelname)s - %(message)s')
     else:
-        logging.basicConfig(level=logging.INFO,
+        log.basicConfig(level=log.INFO,
                             format='%(asctime)s - %(levelname)s - %(message)s')
 
     if hasattr(args, 'action'):
         if args.action == "create":
-            createrecord(args.name, args.content, args.type, args.priority)
+            dns.add(args.type, args.priority, args.name, args.content)
         elif args.action == "show":
-            getrecordsbytype(args.type)
+            dns.show(args.search)
         elif args.action == "delete":
-            deleterecord(args.name)
-        elif args.action == "update":
-            updaterecord(args.name)
+            dns.delete(args.name)
     else:
         logging.error('Unknown action. Use -h for more information')
